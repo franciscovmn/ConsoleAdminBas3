@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      atendimentos: {
+        Row: {
+          contato_cliente: string
+          created_at: string
+          data_agendamento: string | null
+          desconto: number | null
+          google_calendar_event_id: string | null
+          id: string
+          nome_cliente: string
+          plano: string | null
+          status: string
+          updated_at: string
+          valor_cobrado: number | null
+          valor_padrao: number | null
+        }
+        Insert: {
+          contato_cliente: string
+          created_at?: string
+          data_agendamento?: string | null
+          desconto?: number | null
+          google_calendar_event_id?: string | null
+          id?: string
+          nome_cliente: string
+          plano?: string | null
+          status: string
+          updated_at?: string
+          valor_cobrado?: number | null
+          valor_padrao?: number | null
+        }
+        Update: {
+          contato_cliente?: string
+          created_at?: string
+          data_agendamento?: string | null
+          desconto?: number | null
+          google_calendar_event_id?: string | null
+          id?: string
+          nome_cliente?: string
+          plano?: string | null
+          status?: string
+          updated_at?: string
+          valor_cobrado?: number | null
+          valor_padrao?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
