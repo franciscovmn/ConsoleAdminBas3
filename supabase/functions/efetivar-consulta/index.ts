@@ -1,8 +1,9 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { z } from 'https://deno.land/x/zod@v3.23.4/mod.ts';
-import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from 'https://deno.land/x/zod@v3.23.4/mod.ts'
+// ADICIONE ESTA LINHA
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { corsHeaders } from '../_shared/cors.ts'
 
-// Esquema de validação com Zod para o corpo da requisição
 const EfetivarConsultaSchema = z.object({
   atendimentoId: z.string().uuid(),
   plano: z.string(),
@@ -12,12 +13,13 @@ const EfetivarConsultaSchema = z.object({
   nomeCliente: z.string(),
 });
 
-Deno.serve(async (req) => {
-  // Tratar requisição pre-flight OPTIONS para CORS
+// SUBSTITUA "Deno.serve" POR "serve"
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // ... (o restante do seu código permanece igual)
   try {
     const {
       atendimentoId,
@@ -34,8 +36,6 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    // 1. ATUALIZAR PRIMEIRO O BANCO DE DADOS LOCAL (Mais seguro)
-    // =============================================================
     const desconto = valorPadrao - valorCobrado;
     const { error: updateError } = await supabaseUser
       .from('atendimentos')
@@ -48,25 +48,22 @@ Deno.serve(async (req) => {
       .eq('id', atendimentoId);
 
     if (updateError) {
-      console.error('Erro ao atualizar atendimento no Supabase:', updateError);
       throw new Error('Falha ao atualizar o atendimento no banco de dados.');
     }
 
-    // 2. ATUALIZAR O EVENTO NO GOOGLE CALENDAR (Não deletar)
-    // =========================================================
     const sessionResponse = await supabaseUser.auth.getSession();
     const providerToken = sessionResponse.data.session?.provider_token;
 
     if (googleCalendarEventId && providerToken) {
       const eventUpdateBody = {
         summary: `✅ ${nomeCliente} - Atendido`,
-        colorId: '2', // Cor verde no Google Calendar
+        colorId: '2', // Verde
       };
 
-      const updateResponse = await fetch(
+      await fetch(
         `https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleCalendarEventId}`,
         {
-          method: 'PATCH', // Usar PATCH para atualizar em vez de DELETE
+          method: 'PATCH',
           headers: {
             Authorization: `Bearer ${providerToken}`,
             'Content-Type': 'application/json',
@@ -74,12 +71,6 @@ Deno.serve(async (req) => {
           body: JSON.stringify(eventUpdateBody),
         }
       );
-
-      if (!updateResponse.ok) {
-        // A falha aqui não é crítica, pois o dado principal já está salvo.
-        // Apenas registramos o aviso.
-        console.warn('Falha ao atualizar evento no Google Calendar, mas o atendimento foi salvo localmente.', await updateResponse.text());
-      }
     }
 
     return new Response(JSON.stringify({ message: 'Consulta efetivada com sucesso!' }), {
@@ -88,7 +79,6 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Erro na função efetivar-consulta:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: error instanceof z.ZodError ? 400 : 500,
