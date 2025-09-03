@@ -25,10 +25,14 @@ export const Dashboard = () => {
     setModalOpen(true);
   };
 
+// src/pages/Dashboard.tsx -> Aplicar esta correção também
+
   const handleConfirmEfetivacao = async (plano: string, valorCobrado: number) => {
     if (!selectedAtendimento) return;
     
-    const success = await updateStatus(selectedAtendimento.id, plano, valorCobrado);
+    // CORRIGIDO: Passando o objeto 'selectedAtendimento' completo
+    const success = await updateStatus(selectedAtendimento, plano, valorCobrado);
+    
     if (success) {
       setModalOpen(false);
       setSelectedAtendimento(null);
