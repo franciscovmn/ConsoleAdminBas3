@@ -1,4 +1,3 @@
-// src/pages/Login.tsx
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -25,17 +24,14 @@ export const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
         {/* Logo e Título */}
         <div className="text-center">
-          {/* Substituição do texto "bas3" pela logo */}
-          <img
-            src="/logo.png"
-            alt="bas3 logo"
-            className="h-20 sm:h-20 w-auto mx-auto mb-4 drop-shadow-lg"
-          />
-          <p className="text-lg md:text-xl text-white/90 mb-8">
+          <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
+            bas3
+          </h1>
+          <p className="text-xl text-white/90 mb-8">
             Gestão inteligente para nutricionistas
           </p>
         </div>
