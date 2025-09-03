@@ -9,6 +9,7 @@ import type { Tables } from '@/integrations/supabase/types';
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 // Exportando a interface para ser usada em outros lugares
 export type Atendimento = Tables<'atendimentos'>;
 
@@ -59,6 +60,25 @@ export interface Atendimento {
 
 export const useAtendimentos = () => {
 >>>>>>> parent of b2ed3e9 (supabase)
+=======
+export interface Atendimento {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  nome_cliente: string;
+  contato_cliente: string;
+  status: 'agendado' | 'atendido' | 'cancelado';
+  google_calendar_event_id?: string;
+  data_agendamento?: string;
+  plano?: string;
+  valor_padrao?: number;
+  valor_cobrado?: number;
+  desconto?: number;
+}
+
+
+export const useAtendimentos = () => {
+>>>>>>> parent of b2ed3e9 (supabase)
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
@@ -67,8 +87,11 @@ export const useAtendimentos = () => {
   const fetchAtendimentos = useCallback(async () => {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (!session) return;
     setLoading(true);
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
 =======
@@ -80,6 +103,7 @@ export const useAtendimentos = () => {
         .order('data_agendamento', { ascending: true });
 
       if (error) throw error;
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       
@@ -107,6 +131,8 @@ export const useAtendimentos = () => {
 =======
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
       setAtendimentos((data || []) as Atendimento[]);
     } catch (error) {
       console.error('Erro ao buscar atendimentos:', error);
@@ -122,6 +148,9 @@ export const useAtendimentos = () => {
     if (!session) {
       console.warn('Sessão não disponível');
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
@@ -129,6 +158,7 @@ export const useAtendimentos = () => {
     }
 
     try {
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       const { error } = await supabase.functions.invoke('sync-calendar', {
@@ -139,6 +169,8 @@ export const useAtendimentos = () => {
 =======
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
       const { data, error } = await supabase.functions.invoke('sync-calendar');
       
       if (error) {
@@ -146,6 +178,9 @@ export const useAtendimentos = () => {
       }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
@@ -169,7 +204,11 @@ export const useAtendimentos = () => {
   const updateStatus = useCallback(async (
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     atendimento: Atendimento, // Espera o objeto completo
+=======
+    atendimentoId: string,
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
     atendimentoId: string,
 >>>>>>> parent of b2ed3e9 (supabase)
@@ -182,6 +221,7 @@ export const useAtendimentos = () => {
     try {
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       const { error } = await supabase.functions.invoke('efetivar-consulta', {
         body: {
           atendimentoId: atendimento.id,
@@ -191,6 +231,10 @@ export const useAtendimentos = () => {
           valorPadrao: atendimento.valor_padrao,
           nomeCliente: atendimento.nome_cliente,
         },
+=======
+      const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
+        body: { atendimentoId, plano, valorCobrado }
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
       const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
         body: { atendimentoId, plano, valorCobrado }
@@ -227,6 +271,7 @@ export const useAtendimentos = () => {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   // CÁLCULO DE AGENDAMENTOS E MÉTRICAS (AQUI ESTAVA O ERRO)
   const agendamentos = useMemo(() => {
     return atendimentos.filter(a => a.status === 'agendado');
@@ -253,6 +298,8 @@ export const useAtendimentos = () => {
     };
   }, [atendimentos]); // Depende de 'atendimentos'
 =======
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
   useEffect(() => {
@@ -300,6 +347,9 @@ export const useAtendimentos = () => {
 
   const agendamentos = atendimentos.filter(a => a.status === 'agendado');
 <<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
