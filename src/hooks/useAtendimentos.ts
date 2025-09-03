@@ -8,6 +8,7 @@ import { startOfMonth, endOfMonth } from 'date-fns';
 import type { Tables } from '@/integrations/supabase/types';
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // Exportando a interface para ser usada em outros lugares
 export type Atendimento = Tables<'atendimentos'>;
 
@@ -39,6 +40,25 @@ export interface Atendimento {
 
 export const useAtendimentos = () => {
 >>>>>>> parent of b2ed3e9 (supabase)
+=======
+export interface Atendimento {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  nome_cliente: string;
+  contato_cliente: string;
+  status: 'agendado' | 'atendido' | 'cancelado';
+  google_calendar_event_id?: string;
+  data_agendamento?: string;
+  plano?: string;
+  valor_padrao?: number;
+  valor_cobrado?: number;
+  desconto?: number;
+}
+
+
+export const useAtendimentos = () => {
+>>>>>>> parent of b2ed3e9 (supabase)
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
@@ -46,8 +66,11 @@ export const useAtendimentos = () => {
 
   const fetchAtendimentos = useCallback(async () => {
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (!session) return;
     setLoading(true);
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
 >>>>>>> parent of b2ed3e9 (supabase)
     try {
@@ -57,6 +80,7 @@ export const useAtendimentos = () => {
         .order('data_agendamento', { ascending: true });
 
       if (error) throw error;
+<<<<<<< HEAD
 <<<<<<< HEAD
       
       setAtendimentos(data || []);
@@ -81,6 +105,8 @@ export const useAtendimentos = () => {
     if (!session?.provider_token) {
       toast({ title: "Erro de Autenticação", description: "Sessão com o Google expirou. Por favor, faça login novamente.", variant: "destructive" });
 =======
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
       setAtendimentos((data || []) as Atendimento[]);
     } catch (error) {
       console.error('Erro ao buscar atendimentos:', error);
@@ -95,11 +121,15 @@ export const useAtendimentos = () => {
   const syncGoogleCalendar = useCallback(async () => {
     if (!session) {
       console.warn('Sessão não disponível');
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
       return;
     }
 
     try {
+<<<<<<< HEAD
 <<<<<<< HEAD
       const { error } = await supabase.functions.invoke('sync-calendar', {
         body: { provider_token: session.provider_token },
@@ -107,12 +137,17 @@ export const useAtendimentos = () => {
       if (error) throw error;
       toast({ title: "Sincronização iniciada!", description: "Seus agendamentos estão sendo atualizados." });
 =======
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
       const { data, error } = await supabase.functions.invoke('sync-calendar');
       
       if (error) {
         throw error;
       }
 
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
       await fetchAtendimentos();
       
@@ -133,7 +168,11 @@ export const useAtendimentos = () => {
 
   const updateStatus = useCallback(async (
 <<<<<<< HEAD
+<<<<<<< HEAD
     atendimento: Atendimento, // Espera o objeto completo
+=======
+    atendimentoId: string,
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
     atendimentoId: string,
 >>>>>>> parent of b2ed3e9 (supabase)
@@ -141,6 +180,7 @@ export const useAtendimentos = () => {
     valorCobrado: number
   ): Promise<boolean> => {
     try {
+<<<<<<< HEAD
 <<<<<<< HEAD
       const { error } = await supabase.functions.invoke('efetivar-consulta', {
         body: {
@@ -151,6 +191,10 @@ export const useAtendimentos = () => {
           valorPadrao: atendimento.valor_padrao,
           nomeCliente: atendimento.nome_cliente,
         },
+=======
+      const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
+        body: { atendimentoId, plano, valorCobrado }
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
       const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
         body: { atendimentoId, plano, valorCobrado }
@@ -182,6 +226,7 @@ export const useAtendimentos = () => {
   }, [fetchAtendimentos, toast]);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   // CÁLCULO DE AGENDAMENTOS E MÉTRICAS (AQUI ESTAVA O ERRO)
   const agendamentos = useMemo(() => {
     return atendimentos.filter(a => a.status === 'agendado');
@@ -208,6 +253,8 @@ export const useAtendimentos = () => {
     };
   }, [atendimentos]); // Depende de 'atendimentos'
 =======
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -252,6 +299,9 @@ export const useAtendimentos = () => {
   };
 
   const agendamentos = atendimentos.filter(a => a.status === 'agendado');
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
 
   return {

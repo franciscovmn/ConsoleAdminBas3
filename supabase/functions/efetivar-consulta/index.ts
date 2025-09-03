@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { z } from 'https://deno.land/x/zod@v3.23.4/mod.ts'
 // ADICIONE ESTA LINHA
@@ -15,6 +16,16 @@ const EfetivarConsultaSchema = z.object({
 });
 
 // SUBSTITUA "Deno.serve" POR "serve"
+=======
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+>>>>>>> parent of b2ed3e9 (supabase)
 =======
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
@@ -43,7 +54,10 @@ serve(async (req) => {
     );
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
     // Verificar se o usuário está autenticado
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
@@ -118,6 +132,9 @@ serve(async (req) => {
 
     // Calcular desconto
     const valorPadrao = atendimento.valor_padrao || 150;
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
     const desconto = valorPadrao - valorCobrado;
 
@@ -134,6 +151,7 @@ serve(async (req) => {
       .eq('id_usuario', user.id); // Garantir que só modifique seus próprios dados
 
     if (updateError) {
+<<<<<<< HEAD
 <<<<<<< HEAD
       throw new Error('Falha ao atualizar o atendimento no banco de dados.');
     }
@@ -158,10 +176,15 @@ serve(async (req) => {
           body: JSON.stringify(eventUpdateBody),
         }
 =======
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
       console.error('Error updating atendimento:', updateError);
       return new Response(
         JSON.stringify({ error: 'Erro ao atualizar atendimento' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
       );
     }
@@ -178,16 +201,22 @@ serve(async (req) => {
 
   } catch (error) {
 <<<<<<< HEAD
+<<<<<<< HEAD
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: error instanceof z.ZodError ? 400 : 500,
     });
 =======
+=======
+>>>>>>> parent of b2ed3e9 (supabase)
     console.error('Error in efetivar-consulta function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
+<<<<<<< HEAD
+>>>>>>> parent of b2ed3e9 (supabase)
+=======
 >>>>>>> parent of b2ed3e9 (supabase)
   }
 });
