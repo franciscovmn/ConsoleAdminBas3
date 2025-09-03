@@ -1,138 +1,97 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { z } from 'https://deno.land/x/zod@v3.23.4/mod.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Esquema de validação com Zod para o corpo da requisição
+const EfetivarConsultaSchema = z.object({
+  atendimentoId: z.string().uuid(),
+  plano: z.string(),
+  valorCobrado: z.number(),
+  googleCalendarEventId: z.string().optional(),
+  valorPadrao: z.number(),
+  nomeCliente: z.string(),
+});
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // Tratar requisição pre-flight OPTIONS para CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
+    const {
+      atendimentoId,
+      plano,
+      valorCobrado,
+      googleCalendarEventId,
+      valorPadrao,
+      nomeCliente,
+    } = EfetivarConsultaSchema.parse(await req.json());
+
+    const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    // Verificar se o usuário está autenticado
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      console.error('Authentication error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Não autorizado' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { atendimentoId, plano, valorCobrado } = await req.json();
-
-    if (!atendimentoId || !plano || valorCobrado === undefined) {
-      return new Response(
-        JSON.stringify({ error: 'Parâmetros obrigatórios: atendimentoId, plano, valorCobrado' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Efetivando consulta:', { atendimentoId, plano, valorCobrado, userId: user.id });
-
-    // Buscar o atendimento para verificar se pertence ao usuário
-    const { data: atendimento, error: fetchError } = await supabaseClient
-      .from('atendimentos')
-      .select('google_calendar_event_id, valor_padrao, id_usuario')
-      .eq('id', atendimentoId)
-      .eq('id_usuario', user.id) // Garantir que só acesse seus próprios dados
-      .single();
-
-    if (fetchError || !atendimento) {
-      console.error('Atendimento não encontrado:', fetchError);
-      return new Response(
-        JSON.stringify({ error: 'Atendimento não encontrado ou sem permissão' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Buscar o token do Google do usuário
-    const { data: userData } = await supabaseClient
-      .from('usuarios')
-      .select('google_access_token')
-      .eq('id', user.id)
-      .single();
-
-    const googleToken = userData?.google_access_token;
-
-    // Deletar do Google Calendar se houver event_id e token
-    if (atendimento.google_calendar_event_id && googleToken) {
-      console.log('Deleting event from Google Calendar:', atendimento.google_calendar_event_id);
-      
-      const deleteResponse = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${atendimento.google_calendar_event_id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${googleToken}`,
-          },
-        }
-      );
-
-      if (!deleteResponse.ok) {
-        const errorText = await deleteResponse.text();
-        console.error('Failed to delete from Google Calendar:', errorText);
-        return new Response(
-          JSON.stringify({ error: 'Falha ao remover evento do Google Calendar' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      console.log('Successfully deleted event from Google Calendar');
-    }
-
-    // Calcular desconto
-    const valorPadrao = atendimento.valor_padrao || 150;
+    // 1. ATUALIZAR PRIMEIRO O BANCO DE DADOS LOCAL (Mais seguro)
+    // =============================================================
     const desconto = valorPadrao - valorCobrado;
-
-    // Atualizar no Supabase
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabaseUser
       .from('atendimentos')
       .update({
         status: 'atendido',
         plano,
         valor_cobrado: valorCobrado,
-        desconto
+        desconto,
       })
-      .eq('id', atendimentoId)
-      .eq('id_usuario', user.id); // Garantir que só modifique seus próprios dados
+      .eq('id', atendimentoId);
 
     if (updateError) {
-      console.error('Error updating atendimento:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao atualizar atendimento' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error('Erro ao atualizar atendimento no Supabase:', updateError);
+      throw new Error('Falha ao atualizar o atendimento no banco de dados.');
     }
 
-    console.log('Successfully updated atendimento status to atendido');
+    // 2. ATUALIZAR O EVENTO NO GOOGLE CALENDAR (Não deletar)
+    // =========================================================
+    const sessionResponse = await supabaseUser.auth.getSession();
+    const providerToken = sessionResponse.data.session?.provider_token;
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Consulta efetivada com sucesso!' 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    if (googleCalendarEventId && providerToken) {
+      const eventUpdateBody = {
+        summary: `✅ ${nomeCliente} - Atendido`,
+        colorId: '2', // Cor verde no Google Calendar
+      };
+
+      const updateResponse = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleCalendarEventId}`,
+        {
+          method: 'PATCH', // Usar PATCH para atualizar em vez de DELETE
+          headers: {
+            Authorization: `Bearer ${providerToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(eventUpdateBody),
+        }
+      );
+
+      if (!updateResponse.ok) {
+        // A falha aqui não é crítica, pois o dado principal já está salvo.
+        // Apenas registramos o aviso.
+        console.warn('Falha ao atualizar evento no Google Calendar, mas o atendimento foi salvo localmente.', await updateResponse.text());
+      }
+    }
+
+    return new Response(JSON.stringify({ message: 'Consulta efetivada com sucesso!' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
 
   } catch (error) {
-    console.error('Error in efetivar-consulta function:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('Erro na função efetivar-consulta:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: error instanceof z.ZodError ? 400 : 500,
+    });
   }
 });

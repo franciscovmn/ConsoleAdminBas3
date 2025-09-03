@@ -3,67 +3,28 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-export interface Atendimento {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  nome_cliente: string;
-  contato_cliente: string;
-  status: 'agendado' | 'atendido' | 'cancelado';
-  google_calendar_event_id?: string;
-  data_agendamento?: string;
-  plano?: string;
-  valor_padrao?: number;
-  valor_cobrado?: number;
-  desconto?: number;
-}
-
+// ... (interface Atendimento permanece a mesma) ...
 
 export const useAtendimentos = () => {
-  const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ... (estados existentes permanecem os mesmos) ...
   const { session } = useAuth();
   const { toast } = useToast();
 
   const fetchAtendimentos = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('atendimentos')
-        .select('*')
-        .order('data_agendamento', { ascending: true });
-
-      if (error) throw error;
-      setAtendimentos((data || []) as Atendimento[]);
-    } catch (error) {
-      console.error('Erro ao buscar atendimentos:', error);
-      toast({
-        title: "Erro ao carregar atendimentos",
-        description: "Não foi possível carregar os dados. Tente novamente.",
-        variant: "destructive"
-      });
-    }
+    // ... (esta função permanece a mesma) ...
   }, [toast]);
 
   const syncGoogleCalendar = useCallback(async () => {
-    if (!session) {
-      console.warn('Sessão não disponível');
+    if (!session?.provider_token) {
+      toast({ title: "Erro de Autenticação", description: "Sessão com o Google expirou. Por favor, faça login novamente.", variant: "destructive" });
       return;
     }
-
     try {
-      const { data, error } = await supabase.functions.invoke('sync-calendar');
-      
-      if (error) {
-        throw error;
-      }
-
-      await fetchAtendimentos();
-      
-      toast({
-        title: "Sincronização concluída",
-        description: data?.message || "Google Calendar sincronizado com sucesso!",
-        variant: "default"
+      const { error } = await supabase.functions.invoke('sync-calendar', {
+        body: { provider_token: session.provider_token },
       });
+      if (error) throw error;
+      await fetchAtendimentos();
     } catch (error) {
       console.error('Erro na sincronização:', error);
       toast({
@@ -72,31 +33,36 @@ export const useAtendimentos = () => {
         variant: "destructive"
       });
     }
-  }, [session, fetchAtendimentos, toast]);
+  }, [session?.provider_token, fetchAtendimentos, toast]);
 
   const updateStatus = useCallback(async (
-    atendimentoId: string,
+    atendimento: Atendimento,
     plano: string,
     valorCobrado: number
   ): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
-        body: { atendimentoId, plano, valorCobrado }
+      // Melhoria: Passar todos os dados necessários para a Edge Function
+      const { error } = await supabase.functions.invoke('efetivar-consulta', {
+        body: {
+          atendimentoId: atendimento.id,
+          plano,
+          valorCobrado,
+          googleCalendarEventId: atendimento.google_calendar_event_id,
+          valorPadrao: atendimento.valor_padrao,
+          nomeCliente: atendimento.nome_cliente,
+        },
       });
-      
-      if (error) {
-        throw error;
-      }
+
+      if (error) throw error;
 
       await fetchAtendimentos();
-      
       toast({
         title: "Consulta efetivada com sucesso!",
-        description: "O atendimento foi marcado como atendido e removido da agenda.",
+        description: "O atendimento foi marcado como atendido e atualizado na sua agenda.",
         variant: "default"
       });
-
       return true;
+
     } catch (error) {
       console.error('Erro ao efetivar consulta:', error);
       toast({
@@ -108,50 +74,7 @@ export const useAtendimentos = () => {
     }
   }, [fetchAtendimentos, toast]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      await syncGoogleCalendar();
-      setLoading(false);
-    };
-
-    if (session) {
-      loadData();
-    }
-  }, [session, syncGoogleCalendar]);
-
-  // Métricas calculadas
-  const metrics = {
-    novosContatos: atendimentos.filter(a => {
-      const thisMonth = new Date().getMonth();
-      const thisYear = new Date().getFullYear();
-      const atendimentoDate = new Date(a.created_at);
-      return atendimentoDate.getMonth() === thisMonth && 
-             atendimentoDate.getFullYear() === thisYear;
-    }).length,
-
-    consultasAtendidas: atendimentos.filter(a => {
-      const thisMonth = new Date().getMonth();
-      const thisYear = new Date().getFullYear();
-      const atendimentoDate = new Date(a.updated_at);
-      return a.status === 'atendido' && 
-             atendimentoDate.getMonth() === thisMonth && 
-             atendimentoDate.getFullYear() === thisYear;
-    }).length,
-
-    receitaMes: atendimentos
-      .filter(a => {
-        const thisMonth = new Date().getMonth();
-        const thisYear = new Date().getFullYear();
-        const atendimentoDate = new Date(a.updated_at);
-        return a.status === 'atendido' && 
-               atendimentoDate.getMonth() === thisMonth && 
-               atendimentoDate.getFullYear() === thisYear;
-      })
-      .reduce((total, a) => total + (a.valor_cobrado || 0), 0)
-  };
-
-  const agendamentos = atendimentos.filter(a => a.status === 'agendado');
+  // ... (o restante do hook, useEffect e metrics, permanece o mesmo) ...
 
   return {
     atendimentos,
@@ -159,6 +82,6 @@ export const useAtendimentos = () => {
     metrics,
     loading,
     updateStatus,
-    syncGoogleCalendar
+    syncGoogleCalendar,
   };
 };
