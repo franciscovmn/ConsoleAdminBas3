@@ -22,7 +22,6 @@ export type Database = {
           desconto: number | null
           google_calendar_event_id: string | null
           id: string
-          id_usuario: string | null
           nome_cliente: string
           plano: string | null
           status: string
@@ -37,7 +36,6 @@ export type Database = {
           desconto?: number | null
           google_calendar_event_id?: string | null
           id?: string
-          id_usuario?: string | null
           nome_cliente: string
           plano?: string | null
           status: string
@@ -52,37 +50,12 @@ export type Database = {
           desconto?: number | null
           google_calendar_event_id?: string | null
           id?: string
-          id_usuario?: string | null
           nome_cliente?: string
           plano?: string | null
           status?: string
           updated_at?: string
           valor_cobrado?: number | null
           valor_padrao?: number | null
-        }
-        Relationships: []
-      }
-      usuarios: {
-        Row: {
-          created_at: string
-          google_access_token: string | null
-          google_refresh_token: string | null
-          google_token_expiry: string | null
-          id: string
-        }
-        Insert: {
-          created_at?: string
-          google_access_token?: string | null
-          google_refresh_token?: string | null
-          google_token_expiry?: string | null
-          id: string
-        }
-        Update: {
-          created_at?: string
-          google_access_token?: string | null
-          google_refresh_token?: string | null
-          google_token_expiry?: string | null
-          id?: string
         }
         Relationships: []
       }

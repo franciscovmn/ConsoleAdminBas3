@@ -1,3 +1,4 @@
+// src/components/AgendamentosTable.tsx
 import {
   Table,
   TableBody,
@@ -17,12 +18,14 @@ interface AgendamentosTableProps {
   agendamentos: Atendimento[];
   onEfetivarConsulta: (atendimento: Atendimento) => void;
   loading?: boolean;
+  title?: string;
 }
 
 export const AgendamentosTable: React.FC<AgendamentosTableProps> = ({
   agendamentos,
   onEfetivarConsulta,
-  loading = false
+  loading = false,
+  title = "Próximos Agendamentos"
 }) => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Data não definida';
@@ -39,7 +42,7 @@ export const AgendamentosTable: React.FC<AgendamentosTableProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            Próximos Agendamentos
+            {title}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -56,7 +59,7 @@ export const AgendamentosTable: React.FC<AgendamentosTableProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
-          Próximos Agendamentos
+          {title}
           <span className="text-sm font-normal text-muted-foreground">
             ({agendamentos.length} consultas)
           </span>
@@ -66,10 +69,7 @@ export const AgendamentosTable: React.FC<AgendamentosTableProps> = ({
         {agendamentos.length === 0 ? (
           <div className="text-center py-8">
             <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Nenhum agendamento encontrado</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Os agendamentos do Google Calendar aparecerão aqui automaticamente
-            </p>
+            <p className="text-muted-foreground">Nenhum agendamento encontrado para este período.</p>
           </div>
         ) : (
           <div className="rounded-md border">

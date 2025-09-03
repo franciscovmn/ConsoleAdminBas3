@@ -30,29 +30,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        // Salvar tokens do Google quando a sessão for atualizada
-        if (session?.user && session.provider_token) {
-          setTimeout(async () => {
-            try {
-              await supabase
-                .from('usuarios')
-                .upsert({
-                  id: session.user.id,
-                  google_access_token: session.provider_token,
-                  google_refresh_token: session.provider_refresh_token
-                }, {
-                  onConflict: 'id'
-                });
-            } catch (error) {
-              console.error('Erro ao salvar tokens do Google:', error);
-            }
-          }, 0);
-        }
       }
     );
 

@@ -1,28 +1,8 @@
-// src/hooks/useAtendimentos.ts -> CÓDIGO CORRIGIDO E COMPLETO
-
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { startOfMonth, endOfMonth } from 'date-fns';
-import type { Tables } from '@/integrations/supabase/types';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-// Exportando a interface para ser usada em outros lugares
-export type Atendimento = Tables<'atendimentos'>;
-
-// Interface para as métricas
-interface Metrics {
-  novosContatos: number;
-  consultasAtendidas: number;
-  receitaMes: number;
-}
-
-export const useAtendimentos = () => {
-  // DECLARAÇÕES DE ESTADO (PROVÁVEL FONTE DO ERRO ORIGINAL)
-=======
 export interface Atendimento {
   id: string;
   created_at: string;
@@ -38,64 +18,26 @@ export interface Atendimento {
   desconto?: number;
 }
 
-
-export const useAtendimentos = () => {
->>>>>>> parent of b2ed3e9 (supabase)
-=======
-export interface Atendimento {
+interface GoogleCalendarEvent {
   id: string;
-  created_at: string;
-  updated_at: string;
-  nome_cliente: string;
-  contato_cliente: string;
-  status: 'agendado' | 'atendido' | 'cancelado';
-  google_calendar_event_id?: string;
-  data_agendamento?: string;
-  plano?: string;
-  valor_padrao?: number;
-  valor_cobrado?: number;
-  desconto?: number;
+  summary: string;
+  start: {
+    dateTime?: string;
+    date?: string;
+  };
+  attendees?: Array<{
+    email: string;
+    displayName?: string;
+  }>;
 }
 
-
 export const useAtendimentos = () => {
->>>>>>> parent of b2ed3e9 (supabase)
-=======
-export interface Atendimento {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  nome_cliente: string;
-  contato_cliente: string;
-  status: 'agendado' | 'atendido' | 'cancelado';
-  google_calendar_event_id?: string;
-  data_agendamento?: string;
-  plano?: string;
-  valor_padrao?: number;
-  valor_cobrado?: number;
-  desconto?: number;
-}
-
-
-export const useAtendimentos = () => {
->>>>>>> parent of b2ed3e9 (supabase)
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
   const { toast } = useToast();
 
   const fetchAtendimentos = useCallback(async () => {
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    if (!session) return;
-    setLoading(true);
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
     try {
       const { data, error } = await supabase
         .from('atendimentos')
@@ -103,36 +45,6 @@ export const useAtendimentos = () => {
         .order('data_agendamento', { ascending: true });
 
       if (error) throw error;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-      
-      setAtendimentos(data || []);
-    } catch (error) {
-      console.error('Erro ao buscar atendimentos:', error);
-      toast({
-        title: "Erro ao carregar dados",
-        description: "Não foi possível buscar os agendamentos.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [session, toast]);
-
-  useEffect(() => {
-    fetchAtendimentos();
-  }, [fetchAtendimentos]);
-
-  const syncGoogleCalendar = useCallback(async () => {
-    // Sua função de sincronia... (parece correta)
-    if (!session?.provider_token) {
-      toast({ title: "Erro de Autenticação", description: "Sessão com o Google expirou. Por favor, faça login novamente.", variant: "destructive" });
-=======
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
       setAtendimentos((data || []) as Atendimento[]);
     } catch (error) {
       console.error('Erro ao buscar atendimentos:', error);
@@ -145,52 +57,79 @@ export const useAtendimentos = () => {
   }, [toast]);
 
   const syncGoogleCalendar = useCallback(async () => {
-    if (!session) {
-      console.warn('Sessão não disponível');
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
+    if (!session?.provider_token) {
+      console.warn('Token do Google não disponível');
       return;
     }
 
     try {
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-      const { error } = await supabase.functions.invoke('sync-calendar', {
-        body: { provider_token: session.provider_token },
-      });
-      if (error) throw error;
-      toast({ title: "Sincronização iniciada!", description: "Seus agendamentos estão sendo atualizados." });
-=======
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-      const { data, error } = await supabase.functions.invoke('sync-calendar');
-      
-      if (error) {
-        throw error;
+      const now = new Date().toISOString();
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&maxResults=100&singleEvents=true&orderBy=startTime`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.provider_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Falha ao buscar eventos do Google Calendar');
       }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
+      const data = await response.json();
+      const events: GoogleCalendarEvent[] = data.items || [];
+
+      // Processar cada evento
+      for (const event of events) {
+        if (!event.summary || !event.start?.dateTime) continue;
+
+        const attendeeEmail = event.attendees?.[0]?.email || '';
+        const attendeeName = event.attendees?.[0]?.displayName || event.summary;
+
+        const atendimentoData = {
+          nome_cliente: attendeeName,
+          contato_cliente: attendeeEmail,
+          status: 'agendado' as const,
+          google_calendar_event_id: event.id,
+          data_agendamento: event.start.dateTime,
+          valor_padrao: 150.00 // Valor padrão da consulta
+        };
+
+        // Upsert no Supabase usando google_calendar_event_id como chave de conflito
+        const { error } = await supabase
+          .from('atendimentos')
+          .upsert(atendimentoData, {
+            onConflict: 'google_calendar_event_id',
+            ignoreDuplicates: false
+          });
+
+        if (error) {
+          console.error('Erro no upsert:', error);
+        }
+      }
+
+      // Limpeza: remover atendimentos agendados que não existem mais no Google
+      const { data: atendimentosAgendados } = await supabase
+        .from('atendimentos')
+        .select('id, google_calendar_event_id')
+        .eq('status', 'agendado');
+
+      if (atendimentosAgendados) {
+        const googleEventIds = events.map(e => e.id);
+        const atendimentosParaRemover = atendimentosAgendados.filter(
+          a => a.google_calendar_event_id && !googleEventIds.includes(a.google_calendar_event_id)
+        );
+
+        for (const atendimento of atendimentosParaRemover) {
+          await supabase
+            .from('atendimentos')
+            .delete()
+            .eq('id', atendimento.id);
+        }
+      }
+
       await fetchAtendimentos();
-      
-      toast({
-        title: "Sincronização concluída",
-        description: data?.message || "Google Calendar sincronizado com sucesso!",
-        variant: "default"
-      });
     } catch (error) {
       console.error('Erro na sincronização:', error);
       toast({
@@ -199,54 +138,59 @@ export const useAtendimentos = () => {
         variant: "destructive"
       });
     }
-  }, [session, fetchAtendimentos, toast]);
+  }, [session?.provider_token, fetchAtendimentos, toast]);
 
   const updateStatus = useCallback(async (
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    atendimento: Atendimento, // Espera o objeto completo
-=======
     atendimentoId: string,
->>>>>>> parent of b2ed3e9 (supabase)
-=======
-    atendimentoId: string,
->>>>>>> parent of b2ed3e9 (supabase)
-=======
-    atendimentoId: string,
->>>>>>> parent of b2ed3e9 (supabase)
     plano: string,
     valorCobrado: number
   ): Promise<boolean> => {
     try {
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-      const { error } = await supabase.functions.invoke('efetivar-consulta', {
-        body: {
-          atendimentoId: atendimento.id,
+      // Buscar o atendimento para obter o google_calendar_event_id
+      const { data: atendimento, error: fetchError } = await supabase
+        .from('atendimentos')
+        .select('google_calendar_event_id, valor_padrao')
+        .eq('id', atendimentoId)
+        .single();
+
+      if (fetchError || !atendimento) {
+        throw new Error('Atendimento não encontrado');
+      }
+
+      // Deletar do Google Calendar se houver event_id
+      if (atendimento.google_calendar_event_id && session?.provider_token) {
+        const deleteResponse = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events/${atendimento.google_calendar_event_id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${session.provider_token}`,
+            },
+          }
+        );
+
+        if (!deleteResponse.ok) {
+          throw new Error('Falha ao remover evento do Google Calendar');
+        }
+      }
+
+      // Calcular desconto
+      const valorPadrao = atendimento.valor_padrao || 150;
+      const desconto = valorPadrao - valorCobrado;
+
+      // Atualizar no Supabase
+      const { error: updateError } = await supabase
+        .from('atendimentos')
+        .update({
+          status: 'atendido',
           plano,
-          valorCobrado,
-          googleCalendarEventId: atendimento.google_calendar_event_id,
-          valorPadrao: atendimento.valor_padrao,
-          nomeCliente: atendimento.nome_cliente,
-        },
-=======
-      const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
-        body: { atendimentoId, plano, valorCobrado }
->>>>>>> parent of b2ed3e9 (supabase)
-=======
-      const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
-        body: { atendimentoId, plano, valorCobrado }
->>>>>>> parent of b2ed3e9 (supabase)
-=======
-      const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
-        body: { atendimentoId, plano, valorCobrado }
->>>>>>> parent of b2ed3e9 (supabase)
-      });
-      
-      if (error) {
-        throw error;
+          valor_cobrado: valorCobrado,
+          desconto
+        })
+        .eq('id', atendimentoId);
+
+      if (updateError) {
+        throw updateError;
       }
 
       await fetchAtendimentos();
@@ -267,41 +211,8 @@ export const useAtendimentos = () => {
       });
       return false;
     }
-  }, [fetchAtendimentos, toast]);
+  }, [session?.provider_token, fetchAtendimentos, toast]);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  // CÁLCULO DE AGENDAMENTOS E MÉTRICAS (AQUI ESTAVA O ERRO)
-  const agendamentos = useMemo(() => {
-    return atendimentos.filter(a => a.status === 'agendado');
-  }, [atendimentos]);
-
-  const metrics: Metrics = useMemo(() => {
-    const agora = new Date();
-    const inicioDoMes = startOfMonth(agora);
-    const fimDoMes = endOfMonth(agora);
-
-    const atendimentosDoMes = atendimentos.filter(a => {
-      const data = new Date(a.created_at); // Usando created_at para "novos contatos"
-      return data >= inicioDoMes && data <= fimDoMes;
-    });
-
-    const consultasAtendidasNoMes = atendimentosDoMes.filter(a => a.status === 'atendido');
-
-    const receitaMes = consultasAtendidasNoMes.reduce((acc, curr) => acc + (curr.valor_cobrado || 0), 0);
-
-    return {
-      novosContatos: atendimentosDoMes.length,
-      consultasAtendidas: consultasAtendidasNoMes.length,
-      receitaMes,
-    };
-  }, [atendimentos]); // Depende de 'atendimentos'
-=======
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -346,13 +257,6 @@ export const useAtendimentos = () => {
   };
 
   const agendamentos = atendimentos.filter(a => a.status === 'agendado');
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
-=======
->>>>>>> parent of b2ed3e9 (supabase)
 
   return {
     atendimentos,
