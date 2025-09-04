@@ -30,10 +30,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Save Google tokens when user signs in
+        if (event === 'SIGNED_IN' && session?.provider_token && session?.provider_refresh_token) {
+          setTimeout(async () => {
+            try {
+              await supabase
+                .from('usuarios')
+                .upsert({
+                  id: session.user.id,
+                  google_access_token: session.provider_token,
+                  google_refresh_token: session.provider_refresh_token,
+                  google_token_expiry: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
+                }, {
+                  onConflict: 'id'
+                });
+            } catch (error) {
+              console.error('Erro ao salvar tokens do Google:', error);
+            }
+          }, 0);
+        }
       }
     );
 
@@ -49,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           scopes: 'https://www.googleapis.com/auth/calendar.events',
