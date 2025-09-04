@@ -18,19 +18,6 @@ export interface Atendimento {
   desconto?: number;
 }
 
-interface GoogleCalendarEvent {
-  id: string;
-  summary: string;
-  start: {
-    dateTime?: string;
-    date?: string;
-  };
-  attendees?: Array<{
-    email: string;
-    displayName?: string;
-  }>;
-}
-
 export const useAtendimentos = () => {
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,26 +45,27 @@ export const useAtendimentos = () => {
 
   const syncGoogleCalendar = useCallback(async () => {
     if (!session?.access_token) {
-      console.warn('Token de acesso não disponível');
+      console.warn('Sessão não disponível');
       return;
     }
 
     try {
-      const response = await supabase.functions.invoke('sync-calendar', {
+      const { data, error } = await supabase.functions.invoke('sync-calendar', {
         headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Erro na sincronização');
+      if (error) {
+        throw new Error(error.message || 'Erro na sincronização');
       }
 
+      console.log('Sincronização concluída:', data);
       await fetchAtendimentos();
       
       toast({
         title: "Sincronização concluída",
-        description: "Agenda sincronizada com sucesso!",
+        description: `${data.processed} eventos processados, ${data.removed} removidos.`,
         variant: "default"
       });
     } catch (error) {
@@ -98,33 +86,29 @@ export const useAtendimentos = () => {
     if (!session?.access_token) {
       toast({
         title: "Erro de autenticação",
-        description: "Token de acesso não disponível.",
+        description: "Sessão não disponível.",
         variant: "destructive"
       });
       return false;
     }
 
     try {
-      const response = await supabase.functions.invoke('efetivar-consulta', {
-        body: {
-          atendimentoId,
-          plano,
-          valorCobrado
-        },
+      const { data, error } = await supabase.functions.invoke('efetivar-consulta', {
+        body: { atendimentoId, plano, valorCobrado },
         headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Erro ao efetivar consulta');
+      if (error) {
+        throw new Error(error.message || 'Erro ao efetivar consulta');
       }
 
       await fetchAtendimentos();
       
       toast({
         title: "Consulta efetivada com sucesso!",
-        description: "O atendimento foi marcado como atendido e removido da agenda.",
+        description: `O atendimento foi marcado como atendido${data.deletedFromCalendar ? ' e removido da agenda' : ''}.`,
         variant: "default"
       });
 

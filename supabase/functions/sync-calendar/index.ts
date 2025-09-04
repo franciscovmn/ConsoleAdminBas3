@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,116 +27,124 @@ serve(async (req) => {
   }
 
   try {
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    );
 
-    // Get auth token from request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new Error('Token de autorização necessário');
-    }
-
-    const token = authHeader.split(' ')[1];
-
-    // Verify token and get user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Verificar autenticação
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
-      throw new Error('Token inválido');
+      console.error('Authentication error:', authError);
+      return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Iniciando sincronização para usuário:', user.id);
+    console.log('User authenticated:', user.id);
 
-    // Get Google tokens from database
-    const { data: usuario, error: userError } = await supabase
+    // Buscar tokens do Google do usuário
+    const { data: userData, error: userError } = await supabaseClient
       .from('usuarios')
       .select('google_access_token, google_refresh_token, google_token_expiry')
       .eq('id', user.id)
       .single();
 
-    if (userError || !usuario) {
-      throw new Error('Tokens do Google não encontrados');
+    if (userError || !userData?.google_access_token) {
+      console.error('User data error:', userError);
+      return new Response(JSON.stringify({ error: 'Tokens do Google não encontrados' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    let accessToken = usuario.google_access_token;
+    // Verificar se o token está válido
+    let accessToken = userData.google_access_token;
+    const tokenExpiry = userData.google_token_expiry ? new Date(userData.google_token_expiry) : null;
+    const now = new Date();
 
-    // Check if token is expired and refresh if needed
-    if (usuario.google_token_expiry && new Date(usuario.google_token_expiry) < new Date()) {
-      console.log('Token expirado, renovando...');
-      
+    // Se o token expirou, tentar renovar
+    if (tokenExpiry && now >= tokenExpiry && userData.google_refresh_token) {
+      console.log('Token expired, refreshing...');
       const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-          client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
-          client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET')!,
-          refresh_token: usuario.google_refresh_token,
-          grant_type: 'refresh_token'
-        })
+          client_id: Deno.env.get('GOOGLE_CLIENT_ID') ?? '',
+          client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '',
+          refresh_token: userData.google_refresh_token,
+          grant_type: 'refresh_token',
+        }),
       });
 
-      const refreshData = await refreshResponse.json();
-      if (refreshData.error) {
-        throw new Error('Falha ao renovar token: ' + refreshData.error_description);
+      if (refreshResponse.ok) {
+        const refreshData = await refreshResponse.json();
+        accessToken = refreshData.access_token;
+        
+        // Atualizar tokens no banco
+        await supabaseClient
+          .from('usuarios')
+          .update({
+            google_access_token: accessToken,
+            google_token_expiry: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
+          })
+          .eq('id', user.id);
+      } else {
+        return new Response(JSON.stringify({ error: 'Falha ao renovar token do Google' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-
-      accessToken = refreshData.access_token;
-      const newExpiry = new Date(Date.now() + refreshData.expires_in * 1000).toISOString();
-
-      // Update tokens in database
-      await supabase
-        .from('usuarios')
-        .update({
-          google_access_token: accessToken,
-          google_token_expiry: newExpiry
-        })
-        .eq('id', user.id);
     }
 
-    // Fetch calendar events
-    const now = new Date().toISOString();
+    // Buscar eventos do Google Calendar
     const calendarResponse = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&maxResults=100&singleEvents=true&orderBy=startTime`,
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&maxResults=100&singleEvents=true&orderBy=startTime`,
       {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
     if (!calendarResponse.ok) {
       const errorText = await calendarResponse.text();
-      console.error('Erro na API do Google Calendar:', errorText);
-      throw new Error('Falha ao buscar eventos do Google Calendar');
+      console.error('Google Calendar API error:', errorText);
+      return new Response(JSON.stringify({ error: 'Falha ao buscar eventos do Google Calendar' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const calendarData = await calendarResponse.json();
     const events: GoogleCalendarEvent[] = calendarData.items || [];
 
-    console.log(`Processando ${events.length} eventos do Google Calendar`);
+    console.log(`Found ${events.length} events from Google Calendar`);
 
-    // Process each event
+    // Processar cada evento
+    let processedCount = 0;
     for (const event of events) {
       if (!event.summary || !event.start?.dateTime) continue;
 
       const attendeeEmail = event.attendees?.[0]?.email || '';
       const attendeeName = event.attendees?.[0]?.displayName || event.summary;
 
-      const valorPadrao = parseFloat(Deno.env.get('VALOR_PADRAO_CONSULTA') || '150');
-
       const atendimentoData = {
-        id_usuario: user.id,
         nome_cliente: attendeeName,
         contato_cliente: attendeeEmail,
         status: 'agendado' as const,
         google_calendar_event_id: event.id,
         data_agendamento: event.start.dateTime,
-        valor_padrao: valorPadrao
+        valor_padrao: 150.00,
+        id_usuario: user.id // Sempre incluir o id do usuário
       };
 
-      // Upsert no Supabase usando google_calendar_event_id como chave de conflito
-      const { error } = await supabase
+      // Upsert no Supabase
+      const { error } = await supabaseClient
         .from('atendimentos')
         .upsert(atendimentoData, {
           onConflict: 'google_calendar_event_id',
@@ -144,17 +152,20 @@ serve(async (req) => {
         });
 
       if (error) {
-        console.error('Erro no upsert do atendimento:', error);
+        console.error('Erro no upsert:', error);
+      } else {
+        processedCount++;
       }
     }
 
-    // Cleanup: remove scheduled appointments that no longer exist in Google
-    const { data: atendimentosAgendados } = await supabase
+    // Limpeza: remover atendimentos agendados que não existem mais no Google
+    const { data: atendimentosAgendados } = await supabaseClient
       .from('atendimentos')
       .select('id, google_calendar_event_id')
       .eq('status', 'agendado')
       .eq('id_usuario', user.id);
 
+    let removedCount = 0;
     if (atendimentosAgendados) {
       const googleEventIds = events.map(e => e.id);
       const atendimentosParaRemover = atendimentosAgendados.filter(
@@ -162,40 +173,30 @@ serve(async (req) => {
       );
 
       for (const atendimento of atendimentosParaRemover) {
-        const { error: deleteError } = await supabase
+        const { error } = await supabaseClient
           .from('atendimentos')
           .delete()
           .eq('id', atendimento.id);
-
-        if (deleteError) {
-          console.error('Erro ao deletar atendimento:', deleteError);
-        }
+        
+        if (!error) removedCount++;
       }
     }
 
-    console.log('Sincronização concluída com sucesso');
+    console.log(`Sync completed - Processed: ${processedCount}, Removed: ${removedCount}`);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Sincronização concluída com sucesso',
-        eventsProcessed: events.length 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return new Response(JSON.stringify({ 
+      success: true, 
+      processed: processedCount,
+      removed: removedCount 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Erro na sincronização:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Erro interno do servidor' 
-      }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    console.error('Error in sync-calendar function:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
