@@ -35,24 +35,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Save Google tokens when user signs in
-        if (event === 'SIGNED_IN' && session?.provider_token && session?.provider_refresh_token) {
-          setTimeout(async () => {
-            try {
-              await supabase
-                .from('usuarios')
-                .upsert({
-                  id: session.user.id,
-                  google_access_token: session.provider_token,
-                  google_refresh_token: session.provider_refresh_token,
-                  google_token_expiry: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
-                }, {
-                  onConflict: 'id'
-                });
-            } catch (error) {
-              console.error('Erro ao salvar tokens do Google:', error);
-            }
-          }, 0);
+        // Save Google tokens securely when user signs in
+        if (event === 'SIGNED_IN' && session?.provider_token && session?.user) {
+          console.log('💾 Salvando tokens do Google para o usuário:', session.user.id);
+          
+          try {
+            // Calculate token expiry (usually 1 hour from now)
+            const tokenExpiry = new Date(Date.now() + (3600 * 1000)).toISOString();
+            
+            await supabase
+              .from('usuarios')
+              .upsert({
+                id: session.user.id,
+                google_access_token: session.provider_token,
+                google_refresh_token: session.provider_refresh_token || null,
+                google_token_expiry: tokenExpiry,
+              });
+            
+            console.log('✅ Tokens do Google salvos com sucesso');
+          } catch (error) {
+            console.error('❌ Erro ao salvar tokens do Google:', error);
+          }
         }
       }
     );
@@ -69,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           scopes: 'https://www.googleapis.com/auth/calendar.events',
